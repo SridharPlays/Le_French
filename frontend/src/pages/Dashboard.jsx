@@ -24,7 +24,7 @@ import {
   Lock,
 } from "lucide-react";
 
-// --- Helper: Icon Selector ---
+// Helper: Icon Selector
 // Since DB data doesn't have icons, we pick one based on the title or type
 const getIconForExercise = (title, type) => {
   const t = title.toLowerCase();
@@ -37,7 +37,7 @@ const getIconForExercise = (title, type) => {
   return BookOpen; // Default
 };
 
-// --- Widget: Leaderboard ---
+// Widget: Leaderboard
 const Leaderboard = ({ batchId, refreshKey }) => {
   const [leaders, setLeaders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +104,7 @@ const Leaderboard = ({ batchId, refreshKey }) => {
   );
 };
 
-// --- Widget: User Progress ---
+// Widget: User Progress
 const UserProgress = ({ refreshKey }) => {
   const [stats, setStats] = useState({ total_xp: 0, lessons: [] });
 
@@ -158,7 +158,7 @@ const UserProgress = ({ refreshKey }) => {
   );
 };
 
-// --- Main Dashboard ---
+// Main Dashboard
 const Dashboard = () => {
   const { user, logout } = useAuthStore();
   const [refreshKey, setRefreshKey] = useState(0);

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import useAuthStore from "../store/authStore";
 import api from "../api/axiosClient";
 import {
   LayoutDashboard,
@@ -14,6 +16,10 @@ import {
   Save,
   AlertCircle,
   ArrowRight,
+  AlignLeft,
+  LogOut,
+  ChevronLeft,
+  XCircle
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -31,11 +37,12 @@ const QuestionBuilder = ({ onAddQuestion }) => {
     question: "",
     answer: "",
   });
+  const [jumbleData, setJumbleData] = useState({ sentence: "" });
 
-  // Special state for "Match the Following" to make UI easier
+  // Special state for "Match the Following"
   const [matchPairs, setMatchPairs] = useState([{ left: "", right: "" }]);
 
-  // --- Match Logic ---
+  // Match Logic
   const updatePair = (index, field, value) => {
     const newPairs = [...matchPairs];
     newPairs[index][field] = value;
@@ -47,7 +54,7 @@ const QuestionBuilder = ({ onAddQuestion }) => {
   const removePairRow = (index) =>
     setMatchPairs(matchPairs.filter((_, i) => i !== index));
 
-  // --- Add to Queue Logic ---
+  // Add to Queue Logic
   const handleAddClick = () => {
     let finalContent = {};
 
@@ -68,13 +75,9 @@ const QuestionBuilder = ({ onAddQuestion }) => {
       };
       setTfData({ statement: "", isTrue: "true" }); // Reset
     } else if (type === "match") {
-      // Filter out empty rows
       const validPairs = matchPairs.filter((p) => p.left && p.right);
       if (validPairs.length < 2)
         return toast.error("Please add at least 2 valid pairs.");
-
-      // Convert array to the string format backend might expect, or keep as JSON object
-      // Let's store it as a clean JSON object for the DB
       finalContent = { pairs: validPairs };
       setMatchPairs([{ left: "", right: "" }]); // Reset
     } else if (type === "story") {
@@ -82,6 +85,10 @@ const QuestionBuilder = ({ onAddQuestion }) => {
         return toast.error("Please fill all fields.");
       finalContent = { ...storyData };
       setStoryData({ story: "", question: "", answer: "" }); // Reset
+    } else if (type === "jumbled_sentence") {
+      if (!jumbleData.sentence) return toast.error("Please enter the correct sentence.");
+      finalContent = { sentence: jumbleData.sentence };
+      setJumbleData({ sentence: "" }); // Reset
     }
 
     onAddQuestion({ question_type: type, content: finalContent });
@@ -103,10 +110,11 @@ const QuestionBuilder = ({ onAddQuestion }) => {
           <option value="true_false">True / False</option>
           <option value="match">Match the Following</option>
           <option value="story">Story Comprehension</option>
+          <option value="jumbled_sentence">Jumbled Sentence</option>
         </select>
       </div>
 
-      {/* --- Dynamic Input Area --- */}
+      {/* Dynamic Input Area */}
       <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200 space-y-4">
         {/* 1. Fill in Blank UI */}
         {type === "fill_blank" && (
@@ -207,7 +215,7 @@ const QuestionBuilder = ({ onAddQuestion }) => {
           </div>
         )}
 
-        {/* 3. Match the Following UI (Better UX) */}
+        {/* 3. Match the Following UI */}
         {type === "match" && (
           <div className="space-y-2">
             <div className="flex justify-between text-xs font-bold text-gray-500 uppercase px-1">
@@ -292,6 +300,27 @@ const QuestionBuilder = ({ onAddQuestion }) => {
             </div>
           </div>
         )}
+
+        {/* 5. Jumbled Sentence UI */}
+        {type === "jumbled_sentence" && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <AlignLeft className="w-5 h-5 text-purple-600" />
+              <label className="text-xs font-bold text-gray-500 uppercase">
+                Correct Sentence
+              </label>
+            </div>
+            <p className="text-xs text-gray-400 mb-2">
+              Enter the full correct sentence. The game will automatically shuffle the words for the student.
+            </p>
+            <input
+              className="w-full p-4 border rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none text-lg"
+              placeholder="e.g., Je mange une pomme rouge"
+              value={jumbleData.sentence}
+              onChange={(e) => setJumbleData({ sentence: e.target.value })}
+            />
+          </div>
+        )}
       </div>
 
       <button
@@ -313,7 +342,16 @@ const AdminDashboard = () => {
   const [batches, setBatches] = useState([]);
   const [chapters, setChapters] = useState([]);
 
-  // --- Create Content State ---
+  // Student Progress Drill-down State
+  const [selectedBatchId, setSelectedBatchId] = useState(null);
+  const [batchDetails, setBatchDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
+  // Auth & Navigation
+  const logout = useAuthStore((state) => state.logout);
+  const navigate = useNavigate();
+
+  // Create Content State
   const [newChapter, setNewChapter] = useState({
     title: "",
     description: "",
@@ -333,13 +371,13 @@ const AdminDashboard = () => {
     fetchChapters();
   }, []);
 
-  // --- API Calls (Safe Wrappers) ---
+  // API Calls (Safe Wrappers)
   const fetchStats = async () => {
     try {
       const res = await api.get("/admin/stats");
       setStats(res.data);
     } catch (e) {
-      console.warn("Missing stats endpoint",e);
+      console.error("Missing stats endpoint", e);
     }
   };
   const fetchBatches = async () => {
@@ -347,7 +385,7 @@ const AdminDashboard = () => {
       const res = await api.get("/auth/batches");
       setBatches(res.data);
     } catch (e) {
-      console.warn("Missing batches endpoint",e);
+      console.error("Missing batches endpoint", e);
     }
   };
   const fetchChapters = async () => {
@@ -355,11 +393,34 @@ const AdminDashboard = () => {
       const res = await api.get("/admin/chapters_list");
       setChapters(res.data);
     } catch (e) {
-      console.warn("Missing chapter endpoint",e);
+      console.error("Missing chapter endpoint", e);
     }
   };
 
-  // --- Handlers ---
+  // Handlers
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
+
+  const handleViewBatchDetails = async (batchId) => {
+    setSelectedBatchId(batchId);
+    setLoadingDetails(true);
+    try {
+      const res = await api.get(`/batch/${batchId}/full`);
+      setBatchDetails(res.data);
+    } catch (err) {
+      toast.error("Failed to load batch details", err);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const handleBackToOverview = () => {
+    setSelectedBatchId(null);
+    setBatchDetails(null);
+  };
+
   const handleCreateChapter = async () => {
     if (!newChapter.title) return toast.error("Title required");
     try {
@@ -417,9 +478,9 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex font-sans">
-      {/* --- SIDEBAR --- */}
-      <aside className="w-64 bg-red-900 text-white min-h-screen fixed h-full z-20 shadow-xl">
-        <div className="p-6">
+      {/* SIDEBAR */}
+      <aside className="w-64 bg-red-900 text-white min-h-screen fixed h-full z-20 shadow-xl flex flex-col">
+        <div className="p-6 flex-1">
           <div className="flex items-center gap-2 mb-8">
             <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-red-900 font-bold">
               A
@@ -462,60 +523,156 @@ const AdminDashboard = () => {
             </button>
           </nav>
         </div>
-        <div className="absolute bottom-0 w-full p-6 text-xs text-red-300 text-center">
-          v1.0.0 • Secure Admin
+        
+        {/* LOGOUT BUTTON */}
+        <div className="p-4 border-t border-red-800">
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2 text-red-200 hover:text-white px-4 py-2 hover:bg-red-800 rounded-lg transition"
+          >
+            <LogOut className="w-5 h-5" /> Logout
+          </button>
+          <div className="mt-4 text-xs text-red-300 text-center">
+            v1.0.0 • Secure Admin
+          </div>
         </div>
       </aside>
 
-      {/* --- MAIN CONTENT --- */}
+      {/* MAIN CONTENT */}
       <main className="flex-1 ml-64 p-10">
-        {/* === STATS TAB === */}
+        
+        {/* === 1. DASHBOARD / STATS TAB === */}
         {tab === "stats" && (
           <div className="animate-fade-in">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Overview</h1>
-            <p className="text-gray-500 mb-8">
-              Monitor student performance and engagement.
-            </p>
+            {!selectedBatchId ? (
+              // A) OVERVIEW VIEW
+              <>
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">Overview</h1>
+                <p className="text-gray-500 mb-8">
+                  Monitor student performance and engagement across batches.
+                </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {stats.map((b, i) => (
-                <div
-                  key={i}
-                  className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <h4 className="font-bold text-lg text-gray-800 flex items-center gap-2">
-                      <Users className="w-5 h-5 text-blue-500" /> {b.batch_name}
-                    </h4>
-                    <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full font-bold">
-                      Active
-                    </span>
-                  </div>
-                  <div className="flex items-end justify-between mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {stats.map((b, i) => (
+                    <div
+                      key={i}
+                      className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition cursor-pointer group"
+                      onClick={() => handleViewBatchDetails(b.batch_id || i + 1)} // Fallback ID if using raw stats
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <h4 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                          <Users className="w-5 h-5 text-blue-500" /> {b.batch_name}
+                        </h4>
+                        <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full font-bold">
+                          Active
+                        </span>
+                      </div>
+                      <div className="flex items-end justify-between mt-4">
+                        <div>
+                          <p className="text-4xl font-extrabold text-gray-800">
+                            {b.students}
+                          </p>
+                          <p className="text-gray-400 text-xs uppercase tracking-wider mt-1 font-bold">
+                            Enrolled
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-green-600 flex items-center justify-end gap-1">
+                            <Award className="w-5 h-5" /> {b.total_batch_xp || 0}
+                          </p>
+                          <p className="text-gray-400 text-xs uppercase tracking-wider font-bold">
+                            Total XP
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-6 pt-4 border-t border-gray-100 flex items-center text-blue-600 text-sm font-bold group-hover:translate-x-1 transition-transform">
+                        View Student Progress <ArrowRight className="w-4 h-4 ml-1" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              // B) DETAIL DRILL-DOWN VIEW
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden min-h-[500px]">
+                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0">
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={handleBackToOverview}
+                      className="p-2 hover:bg-white rounded-full border border-transparent hover:border-gray-300 transition shadow-sm"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-gray-600" />
+                    </button>
                     <div>
-                      <p className="text-4xl font-extrabold text-gray-800">
-                        {b.students}
-                      </p>
-                      <p className="text-gray-400 text-xs uppercase tracking-wider mt-1 font-bold">
-                        Enrolled
-                      </p>
+                      <h2 className="text-xl font-bold text-gray-800">
+                        {loadingDetails ? "Loading..." : batchDetails?.batch_name}
+                      </h2>
+                      <p className="text-xs text-gray-500">Student Performance Report</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xl font-bold text-green-600 flex items-center justify-end gap-1">
-                        <Award className="w-5 h-5" /> {b.total_batch_xp || 0}
-                      </p>
-                      <p className="text-gray-400 text-xs uppercase tracking-wider font-bold">
-                        Total XP
-                      </p>
-                    </div>
+                  </div>
+                  <div className="text-sm font-mono bg-white px-3 py-1 rounded border">
+                    {batchDetails?.students?.length || 0} Students
                   </div>
                 </div>
-              ))}
-            </div>
+
+                {loadingDetails ? (
+                  <div className="p-20 text-center text-gray-400">Loading student data...</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-bold tracking-wider border-b border-gray-200">
+                        <tr>
+                          <th className="py-4 px-6">Student Name</th>
+                          <th className="py-4 px-6">Email</th>
+                          <th className="py-4 px-6 text-center">Total XP</th>
+                          <th className="py-4 px-6 text-center">Lessons Done</th>
+                          <th className="py-4 px-6 text-center text-red-600">Mistakes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {batchDetails?.students?.map((student) => (
+                          <tr key={student.user_id} className="hover:bg-blue-50 transition-colors">
+                            <td className="py-4 px-6 font-medium text-gray-900">
+                              {student.name}
+                              <div className="text-[10px] text-gray-400 font-mono sm:hidden">{student.email}</div>
+                            </td>
+                            <td className="py-4 px-6 text-gray-500 text-sm">{student.email}</td>
+                            <td className="py-4 px-6 text-center">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                {student.total_xp} XP
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-center text-gray-700 font-bold">
+                              {student.lessons_completed || 0}
+                            </td>
+                            <td className="py-4 px-6 text-center">
+                              {student.total_mistakes && student.total_mistakes > 0 ? (
+                                <span className="inline-flex items-center gap-1 text-red-600 font-bold">
+                                  <XCircle className="w-4 h-4" /> {student.total_mistakes}
+                                </span>
+                              ) : (
+                                <span className="text-gray-300">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                        {batchDetails?.students?.length === 0 && (
+                          <tr>
+                            <td colSpan="5" className="p-10 text-center text-gray-400 italic">
+                              No students found in this batch.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* === CREATE CONTENT TAB === */}
+        {/* === 2. CREATE CONTENT TAB === */}
         {tab === "create" && (
           <div className="max-w-4xl mx-auto pb-20 animate-fade-in">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
@@ -648,7 +805,7 @@ const AdminDashboard = () => {
 
               <hr className="border-gray-100 my-8" />
 
-              {/* 3. ADD QUESTIONS (The complex part) */}
+              {/* 3. ADD QUESTIONS */}
               <QuestionBuilder
                 onAddQuestion={(q) => setQuestionQueue([...questionQueue, q])}
               />
@@ -687,6 +844,7 @@ const AdminDashboard = () => {
                             <div className="text-sm text-gray-700 font-medium truncate w-96">
                               {q.content.text ||
                                 q.content.statement ||
+                                q.content.sentence ||
                                 (q.content.pairs
                                   ? "Matching Pairs"
                                   : "Story Content")}
@@ -721,7 +879,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* === LOCKS TAB === */}
+        {/* === 3. LOCKS TAB === */}
         {tab === "locks" && (
           <div className="max-w-5xl mx-auto animate-fade-in">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
@@ -776,7 +934,6 @@ const AdminDashboard = () => {
                             className="p-2 bg-white border border-gray-200 text-gray-400 hover:text-green-600 hover:border-green-300 rounded transition"
                           >
                             <Lock className="w-4 h-4 rotate-180" />{" "}
-                            {/* Hack for 'Unlock' icon visual */}
                           </button>
                           <button
                             title="Lock"
