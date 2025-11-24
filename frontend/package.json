@@ -4,14 +4,17 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@gradio/client": "^2.0.0-dev.1",
     "@tailwindcss/vite": "^4.1.17",
     "axios": "^1.13.2",
+    "extendable-media-recorder": "^9.2.31",
+    "extendable-media-recorder-wav-encoder": "^7.0.132",
     "lucide-react": "^0.553.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

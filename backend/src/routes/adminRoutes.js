@@ -1,6 +1,6 @@
 import express from 'express';
-import { authMiddleware } from '../middleware/auth.js'; // Ensure this adds role to req.user
-import { createChapter, createExercise, toggleChapterLock, getStudentProgress, getChapters } from '../controllers/adminController.js';
+import { authMiddleware } from '../middleware/auth.js';
+import { createChapter, createExercise, toggleChapterLock, getStudentProgress, getChapters, getStudentHistory, getBatchAccess } from '../controllers/adminController.js';
 
 const router = express.Router();
 
@@ -17,5 +17,7 @@ router.post('/exercise', authMiddleware, verifyAdmin, createExercise);
 router.post('/lock', authMiddleware, verifyAdmin, toggleChapterLock);
 router.get('/stats', authMiddleware, verifyAdmin, getStudentProgress);
 router.get('/chapters_list', authMiddleware, getChapters);
+router.get('/student/:id', authMiddleware, verifyAdmin, getStudentHistory);
+router.get('/access_map', authMiddleware, verifyAdmin, getBatchAccess);
 
 export default router;

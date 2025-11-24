@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuthStore from "../store/authStore";
@@ -19,7 +20,11 @@ import {
   AlignLeft,
   LogOut,
   ChevronLeft,
-  XCircle
+  XCircle,
+  Clock,
+  History,
+  Unlock,
+  Mic
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -38,11 +43,12 @@ const QuestionBuilder = ({ onAddQuestion }) => {
     answer: "",
   });
   const [jumbleData, setJumbleData] = useState({ sentence: "" });
+  const [speakingData, setSpeakingData] = useState({ text: "" }); // NEW STATE
 
   // Special state for "Match the Following"
   const [matchPairs, setMatchPairs] = useState([{ left: "", right: "" }]);
 
-  // Match Logic
+  // --- Match Logic ---
   const updatePair = (index, field, value) => {
     const newPairs = [...matchPairs];
     newPairs[index][field] = value;
@@ -54,7 +60,7 @@ const QuestionBuilder = ({ onAddQuestion }) => {
   const removePairRow = (index) =>
     setMatchPairs(matchPairs.filter((_, i) => i !== index));
 
-  // Add to Queue Logic
+  // --- Add to Queue Logic ---
   const handleAddClick = () => {
     let finalContent = {};
 
@@ -89,6 +95,11 @@ const QuestionBuilder = ({ onAddQuestion }) => {
       if (!jumbleData.sentence) return toast.error("Please enter the correct sentence.");
       finalContent = { sentence: jumbleData.sentence };
       setJumbleData({ sentence: "" }); // Reset
+    } else if (type === "speaking") {
+      // NEW: Speaking Validation
+      if (!speakingData.text) return toast.error("Please enter the sentence to pronounce.");
+      finalContent = { text: speakingData.text };
+      setSpeakingData({ text: "" });
     }
 
     onAddQuestion({ question_type: type, content: finalContent });
@@ -111,10 +122,11 @@ const QuestionBuilder = ({ onAddQuestion }) => {
           <option value="match">Match the Following</option>
           <option value="story">Story Comprehension</option>
           <option value="jumbled_sentence">Jumbled Sentence</option>
+          <option value="speaking">Speaking Challenge</option> {/* NEW OPTION */}
         </select>
       </div>
 
-      {/* Dynamic Input Area */}
+      {/* --- Dynamic Input Area --- */}
       <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200 space-y-4">
         {/* 1. Fill in Blank UI */}
         {type === "fill_blank" && (
@@ -321,6 +333,27 @@ const QuestionBuilder = ({ onAddQuestion }) => {
             />
           </div>
         )}
+
+        {/* 6. NEW: Speaking UI */}
+        {type === "speaking" && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Mic className="w-5 h-5 text-rose-600" />
+              <label className="text-xs font-bold text-gray-500 uppercase">
+                Reference Text to Pronounce
+              </label>
+            </div>
+            <p className="text-xs text-gray-400 mb-2">
+              Enter the word or sentence the student needs to speak.
+            </p>
+            <input
+              className="w-full p-4 border rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none text-lg"
+              placeholder="e.g., Bonjour, comment ça va ?"
+              value={speakingData.text}
+              onChange={(e) => setSpeakingData({ text: e.target.value })}
+            />
+          </div>
+        )}
       </div>
 
       <button
@@ -341,11 +374,17 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState([]);
   const [batches, setBatches] = useState([]);
   const [chapters, setChapters] = useState([]);
+  
+  // Access Status State
+  const [accessMap, setAccessMap] = useState(new Set());
 
-  // Student Progress Drill-down State
+  // Drill-down States
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [batchDetails, setBatchDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [studentHistory, setStudentHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Auth & Navigation
   const logout = useAuthStore((state) => state.logout);
@@ -369,9 +408,10 @@ const AdminDashboard = () => {
     fetchStats();
     fetchBatches();
     fetchChapters();
+    fetchAccessMap();
   }, []);
 
-  // API Calls (Safe Wrappers)
+  // API Calls
   const fetchStats = async () => {
     try {
       const res = await api.get("/admin/stats");
@@ -396,6 +436,16 @@ const AdminDashboard = () => {
       console.error("Missing chapter endpoint", e);
     }
   };
+  
+  const fetchAccessMap = async () => {
+    try {
+      const res = await api.get("/admin/access_map");
+      const newMap = new Set(res.data.map(item => `${item.batch_id}-${item.chapter_id}`));
+      setAccessMap(newMap);
+    } catch (e) {
+      console.error("Missing access map endpoint", e);
+    }
+  };
 
   // Handlers
   const handleLogout = async () => {
@@ -410,10 +460,28 @@ const AdminDashboard = () => {
       const res = await api.get(`/batch/${batchId}/full`);
       setBatchDetails(res.data);
     } catch (err) {
-      toast.error("Failed to load batch details", err);
+      toast.error("Failed to load batch details");
     } finally {
       setLoadingDetails(false);
     }
+  };
+
+  const handleViewStudentHistory = async (student) => {
+    setSelectedStudent(student);
+    setLoadingHistory(true);
+    try {
+      const res = await api.get(`/admin/student/${student.user_id}`);
+      setStudentHistory(res.data);
+    } catch (err) {
+      toast.error("Failed to load student history");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleBackToBatch = () => {
+    setSelectedStudent(null);
+    setStudentHistory([]);
   };
 
   const handleBackToOverview = () => {
@@ -453,8 +521,6 @@ const AdminDashboard = () => {
         questions: questionQueue,
       });
       toast.success("✅ Exercise Published Successfully!");
-
-      // Reset Form
       setQuestionQueue([]);
       setNewExercise({ ...newExercise, title: "" });
     } catch (err) {
@@ -470,6 +536,16 @@ const AdminDashboard = () => {
         chapter_id: chapterId,
         unlock,
       });
+      
+      const key = `${batchId}-${chapterId}`;
+      const newMap = new Set(accessMap);
+      if (unlock) {
+        newMap.add(key);
+      } else {
+        newMap.delete(key);
+      }
+      setAccessMap(newMap);
+
       toast.success(unlock ? "Chapter Unlocked 🔓" : "Chapter Locked 🔒");
     } catch (e) {
       toast.error("Error updating lock", e);
@@ -524,7 +600,6 @@ const AdminDashboard = () => {
           </nav>
         </div>
         
-        {/* LOGOUT BUTTON */}
         <div className="p-4 border-t border-red-800">
           <button 
             onClick={handleLogout}
@@ -544,8 +619,9 @@ const AdminDashboard = () => {
         {/* === 1. DASHBOARD / STATS TAB === */}
         {tab === "stats" && (
           <div className="animate-fade-in">
+            
             {!selectedBatchId ? (
-              // A) OVERVIEW VIEW
+              // A) BATCH OVERVIEW
               <>
                 <h1 className="text-3xl font-bold text-gray-800 mb-2">Overview</h1>
                 <p className="text-gray-500 mb-8">
@@ -557,7 +633,7 @@ const AdminDashboard = () => {
                     <div
                       key={i}
                       className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition cursor-pointer group"
-                      onClick={() => handleViewBatchDetails(b.batch_id || i + 1)} // Fallback ID if using raw stats
+                      onClick={() => handleViewBatchDetails(b.batch_id)}
                     >
                       <div className="flex justify-between items-start mb-4">
                         <h4 className="font-bold text-lg text-gray-800 flex items-center gap-2">
@@ -592,8 +668,8 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               </>
-            ) : (
-              // B) DETAIL DRILL-DOWN VIEW
+            ) : !selectedStudent ? (
+              // B) BATCH DETAILS
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden min-h-[500px]">
                 <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0">
                   <div className="flex items-center gap-4">
@@ -607,7 +683,7 @@ const AdminDashboard = () => {
                       <h2 className="text-xl font-bold text-gray-800">
                         {loadingDetails ? "Loading..." : batchDetails?.batch_name}
                       </h2>
-                      <p className="text-xs text-gray-500">Student Performance Report</p>
+                      <p className="text-xs text-gray-500">Select a student to view detailed history</p>
                     </div>
                   </div>
                   <div className="text-sm font-mono bg-white px-3 py-1 rounded border">
@@ -625,8 +701,8 @@ const AdminDashboard = () => {
                           <th className="py-4 px-6">Student Name</th>
                           <th className="py-4 px-6">Email</th>
                           <th className="py-4 px-6 text-center">Total XP</th>
-                          <th className="py-4 px-6 text-center">Lessons Done</th>
-                          <th className="py-4 px-6 text-center text-red-600">Mistakes</th>
+                          <th className="py-4 px-6 text-center">Lessons</th>
+                          <th className="py-4 px-6 text-center">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -634,7 +710,6 @@ const AdminDashboard = () => {
                           <tr key={student.user_id} className="hover:bg-blue-50 transition-colors">
                             <td className="py-4 px-6 font-medium text-gray-900">
                               {student.name}
-                              <div className="text-[10px] text-gray-400 font-mono sm:hidden">{student.email}</div>
                             </td>
                             <td className="py-4 px-6 text-gray-500 text-sm">{student.email}</td>
                             <td className="py-4 px-6 text-center">
@@ -646,13 +721,12 @@ const AdminDashboard = () => {
                               {student.lessons_completed || 0}
                             </td>
                             <td className="py-4 px-6 text-center">
-                              {student.total_mistakes && student.total_mistakes > 0 ? (
-                                <span className="inline-flex items-center gap-1 text-red-600 font-bold">
-                                  <XCircle className="w-4 h-4" /> {student.total_mistakes}
-                                </span>
-                              ) : (
-                                <span className="text-gray-300">-</span>
-                              )}
+                              <button 
+                                onClick={() => handleViewStudentHistory(student)}
+                                className="text-blue-600 hover:text-blue-800 font-bold text-sm flex items-center justify-center gap-1"
+                              >
+                                <History className="w-4 h-4" /> History
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -660,6 +734,84 @@ const AdminDashboard = () => {
                           <tr>
                             <td colSpan="5" className="p-10 text-center text-gray-400 italic">
                               No students found in this batch.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : (
+              // C) STUDENT HISTORY DETAILS
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden min-h-[500px]">
+                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0">
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={handleBackToBatch}
+                      className="p-2 hover:bg-white rounded-full border border-transparent hover:border-gray-300 transition shadow-sm"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-gray-600" />
+                    </button>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-800">
+                        {selectedStudent?.name}
+                      </h2>
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-green-500"/>
+                        Total XP: {selectedStudent?.total_xp}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">
+                    ACTIVITY LOG
+                  </div>
+                </div>
+
+                {loadingHistory ? (
+                  <div className="p-20 text-center text-gray-400">Loading history...</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-bold tracking-wider border-b border-gray-200">
+                        <tr>
+                          <th className="py-4 px-6">Exercise</th>
+                          <th className="py-4 px-6">Completed At</th>
+                          <th className="py-4 px-6 text-center">Mistakes</th>
+                          <th className="py-4 px-6 text-right">XP Gained</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {studentHistory.map((attempt, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="py-4 px-6 text-gray-800 font-medium">
+                              {attempt.title || "Unknown Exercise"}
+                              <div className="text-[10px] text-gray-400 uppercase tracking-wider">{attempt.type || 'quiz'}</div>
+                            </td>
+                            <td className="py-4 px-6 text-gray-500 text-sm">
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-gray-400" />
+                                {new Date(attempt.completed_at).toLocaleString()}
+                              </div>
+                            </td>
+                            <td className="py-4 px-6 text-center">
+                              {attempt.mistakes > 0 ? (
+                                <span className="inline-flex items-center gap-1 text-red-600 font-bold bg-red-50 px-2 py-1 rounded">
+                                  <XCircle className="w-4 h-4" /> {attempt.mistakes}
+                                </span>
+                              ) : (
+                                <span className="text-green-500 font-bold">Perfect</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-6 text-right font-bold text-green-600">
+                              +{attempt.xp_gained}
+                            </td>
+                          </tr>
+                        ))}
+                        {studentHistory.length === 0 && (
+                          <tr>
+                            <td colSpan="4" className="p-10 text-center text-gray-400 italic">
+                              No activity recorded for this student yet.
                             </td>
                           </tr>
                         )}
@@ -908,49 +1060,54 @@ const AdminDashboard = () => {
                     {(chapters.length > 0
                       ? chapters
                       : [{ chapter_id: 1, title: "Basics (Default)" }]
-                    ).map((chap) => (
-                      <div
-                        key={chap.chapter_id}
-                        className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="bg-blue-50 p-2 rounded text-blue-600">
-                            <BookOpen className="w-4 h-4" />
+                    ).map((chap) => {
+                      // Determine if unlocked
+                      const isUnlocked = accessMap.has(`${batch.batch_id}-${chap.chapter_id}`);
+
+                      return (
+                        <div
+                          key={chap.chapter_id}
+                          className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded ${isUnlocked ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                              {isUnlocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                            </div>
+                            <span className="font-medium text-gray-700 text-sm">
+                              {chap.title}
+                            </span>
                           </div>
-                          <span className="font-medium text-gray-700 text-sm">
-                            {chap.title}
-                          </span>
+                          <div className="flex gap-1">
+                            <button
+                              title="Unlock"
+                              onClick={() =>
+                                handleLockToggle(
+                                  batch.batch_id,
+                                  chap.chapter_id,
+                                  true
+                                )
+                              }
+                              className={`p-2 border rounded transition ${isUnlocked ? 'bg-green-100 border-green-500 text-green-700' : 'bg-white border-gray-200 text-gray-400 hover:text-green-600'}`}
+                            >
+                              <Lock className="w-4 h-4 rotate-180" />
+                            </button>
+                            <button
+                              title="Lock"
+                              onClick={() =>
+                                handleLockToggle(
+                                  batch.batch_id,
+                                  chap.chapter_id,
+                                  false
+                                )
+                              }
+                              className={`p-2 border rounded transition ${!isUnlocked ? 'bg-red-100 border-red-500 text-red-700' : 'bg-white border-gray-200 text-gray-400 hover:text-red-600'}`}
+                            >
+                              <Lock className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex gap-1">
-                          <button
-                            title="Unlock"
-                            onClick={() =>
-                              handleLockToggle(
-                                batch.batch_id,
-                                chap.chapter_id,
-                                true
-                              )
-                            }
-                            className="p-2 bg-white border border-gray-200 text-gray-400 hover:text-green-600 hover:border-green-300 rounded transition"
-                          >
-                            <Lock className="w-4 h-4 rotate-180" />{" "}
-                          </button>
-                          <button
-                            title="Lock"
-                            onClick={() =>
-                              handleLockToggle(
-                                batch.batch_id,
-                                chap.chapter_id,
-                                false
-                              )
-                            }
-                            className="p-2 bg-white border border-gray-200 text-gray-400 hover:text-red-600 hover:border-red-300 rounded transition"
-                          >
-                            <Lock className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
