@@ -3,6 +3,7 @@
   "name": "le-french",
   
   "outputDirectory": "dist",
+  
   "installCommand": "npm install --prefix ./backend && npm install --prefix ./frontend",
   
   "builds": [
@@ -16,6 +17,10 @@
   ],
   
   "routes": [
+    {
+      "src": "/",
+      "dest": "dist/index.html"
+    },
     {
       "src": "/api/(.*)",
       "dest": "backend/src/server.js"
