@@ -63,14 +63,15 @@ export const addProgress = async (req, res) => {
   const { lesson_id, xp_gained, mistakes } = req.body; 
   const user_id = req.user.id;
 
-  if (!lesson_id || xp_gained === undefined) {
-    return res.status(400).json({ msg: 'Missing lesson_id or xp_gained' });
+  if (!lesson_id) {
+    return res.status(400).json({ msg: 'Missing lesson_id' });
   }
 
   try {
+    // FIX: Fallback to 10 if xp_gained is null/undefined
     const newProgress = await pool.query(
       'INSERT INTO user_progress (user_id, lesson_id, xp_gained, mistakes) VALUES ($1, $2, $3, $4) RETURNING *',
-      [user_id, String(lesson_id), xp_gained, mistakes || 0]
+      [user_id, String(lesson_id), xp_gained || 10, mistakes || 0]
     );
 
     res.status(201).json(newProgress.rows[0]);
@@ -139,6 +140,33 @@ export const getExerciseDetails = async (req, res) => {
     res.json({ ...exerciseRes.rows[0], questions: questionsRes.rows });
   } catch (err) {
     console.error(err.message);
+    res.status(500).send('Server error');
+  }
+};
+
+export const getStudyMaterials = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    // 1. Get User Batch
+    const userRes = await pool.query('SELECT batch_id FROM users WHERE user_id = $1', [userId]);
+    if (userRes.rows.length === 0) return res.status(404).json({ msg: "User not found" });
+    const batch_id = userRes.rows[0].batch_id;
+
+    if (!batch_id) return res.json([]);
+
+    // 2. Get Study Materials for Chapters Unlocked for this Batch
+    const query = `
+      SELECT sm.material_id, sm.title, sm.content, sm.category, c.title as chapter_title
+      FROM study_materials sm
+      JOIN chapters c ON sm.chapter_id = c.chapter_id
+      JOIN batch_chapter_access bca ON c.chapter_id = bca.chapter_id
+      WHERE bca.batch_id = $1
+      ORDER BY c.sequence_order ASC, sm.title ASC
+    `;
+    const result = await pool.query(query, [batch_id]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
     res.status(500).send('Server error');
   }
 };

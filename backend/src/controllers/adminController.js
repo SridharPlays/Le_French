@@ -19,8 +19,9 @@ export const createExercise = async (req, res) => {
     await client.query('BEGIN');
 
     const exRes = await client.query(
+      // FIX: Fallback to 10 if xp_reward is missing
       'INSERT INTO exercises (chapter_id, title, type, xp_reward) VALUES ($1, $2, $3, $4) RETURNING *',
-      [chapter_id, title, type, xp_reward]
+      [chapter_id, title, type, xp_reward || 10]
     );
     const exerciseId = exRes.rows[0].exercise_id;
 
@@ -84,7 +85,6 @@ export const getChapters = async (req, res) => {
 export const getStudentHistory = async (req, res) => {
   const { id } = req.params;
   try {
-    // Fetches all attempts for a specific user
     const history = await pool.query(`
       SELECT 
         up.progress_id,
@@ -109,6 +109,20 @@ export const getBatchAccess = async (req, res) => {
   try {
     const result = await pool.query('SELECT batch_id, chapter_id FROM batch_chapter_access');
     res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+};
+
+export const createStudyMaterial = async (req, res) => {
+  const { chapter_id, title, content, category } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO study_materials (chapter_id, title, content, category) VALUES ($1, $2, $3, $4) RETURNING *',
+      [chapter_id, title, content, category || 'grammar']
+    );
+    res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');

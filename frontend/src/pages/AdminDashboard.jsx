@@ -24,7 +24,8 @@ import {
   Clock,
   History,
   Unlock,
-  Mic
+  Mic,
+  GraduationCap
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -35,7 +36,7 @@ const QuestionBuilder = ({ onAddQuestion }) => {
   const [type, setType] = useState("fill_blank");
 
   // Internal states for different question types
-  const [fillData, setFillData] = useState({ text: "", answer: "" });
+  const [fillData, setFillData] = useState({ text: "", answer: "", options: "" });
   const [tfData, setTfData] = useState({ statement: "", isTrue: "true" });
   const [storyData, setStoryData] = useState({
     story: "",
@@ -43,7 +44,7 @@ const QuestionBuilder = ({ onAddQuestion }) => {
     answer: "",
   });
   const [jumbleData, setJumbleData] = useState({ sentence: "" });
-  const [speakingData, setSpeakingData] = useState({ text: "" }); // NEW STATE
+  const [speakingData, setSpeakingData] = useState({ text: "" });
 
   // Special state for "Match the Following"
   const [matchPairs, setMatchPairs] = useState([{ left: "", right: "" }]);
@@ -71,8 +72,25 @@ const QuestionBuilder = ({ onAddQuestion }) => {
           "Please include '___' in the question text for the blank space."
         );
       if (!fillData.answer) return toast.error("Please provide the correct answer.");
-      finalContent = { ...fillData };
-      setFillData({ text: "", answer: "" }); // Reset
+      
+      // Process options
+      const optionsArray = fillData.options
+        ? fillData.options.split(',').map(o => o.trim()).filter(o => o)
+        : [];
+      
+      // Ensure answer is in options if options are provided
+      if (optionsArray.length > 0 && !optionsArray.includes(fillData.answer)) {
+          optionsArray.push(fillData.answer);
+      }
+      // Shuffle options
+      optionsArray.sort(() => Math.random() - 0.5);
+
+      finalContent = { 
+          text: fillData.text, 
+          answer: fillData.answer,
+          options: optionsArray 
+      };
+      setFillData({ text: "", answer: "", options: "" }); // Reset
     } else if (type === "true_false") {
       if (!tfData.statement) return toast.error("Please enter a statement.");
       finalContent = {
@@ -96,7 +114,6 @@ const QuestionBuilder = ({ onAddQuestion }) => {
       finalContent = { sentence: jumbleData.sentence };
       setJumbleData({ sentence: "" }); // Reset
     } else if (type === "speaking") {
-      // NEW: Speaking Validation
       if (!speakingData.text) return toast.error("Please enter the sentence to pronounce.");
       finalContent = { text: speakingData.text };
       setSpeakingData({ text: "" });
@@ -122,7 +139,7 @@ const QuestionBuilder = ({ onAddQuestion }) => {
           <option value="match">Match the Following</option>
           <option value="story">Story Comprehension</option>
           <option value="jumbled_sentence">Jumbled Sentence</option>
-          <option value="speaking">Speaking Challenge</option> {/* NEW OPTION */}
+          <option value="speaking">Speaking Challenge</option>
         </select>
       </div>
 
@@ -157,6 +174,22 @@ const QuestionBuilder = ({ onAddQuestion }) => {
                 value={fillData.answer}
                 onChange={(e) =>
                   setFillData({ ...fillData, answer: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase">
+                Distractor Options (Optional)
+              </label>
+              <div className="text-xs text-gray-400 mb-1">
+                Comma separated. If empty, student must type the answer.
+              </div>
+              <input
+                className="w-full p-3 border rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none transition"
+                placeholder="e.g., dort, mange, court"
+                value={fillData.options}
+                onChange={(e) =>
+                  setFillData({ ...fillData, options: e.target.value })
                 }
               />
             </div>
@@ -334,7 +367,7 @@ const QuestionBuilder = ({ onAddQuestion }) => {
           </div>
         )}
 
-        {/* 6. NEW: Speaking UI */}
+        {/* 6. Speaking UI */}
         {type === "speaking" && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 mb-2">
@@ -396,13 +429,22 @@ const AdminDashboard = () => {
     description: "",
     order: 1,
   });
+  // FIX: Changed 'xp' to 'xp_reward'
   const [newExercise, setNewExercise] = useState({
     title: "",
     type: "quiz",
     chapter_id: "",
-    xp: 10,
+    xp_reward: 10,
   });
   const [questionQueue, setQuestionQueue] = useState([]);
+
+  // Study Material State
+  const [studyMaterial, setStudyMaterial] = useState({
+    title: "",
+    content: "",
+    chapter_id: "",
+    category: "grammar"
+  });
 
   useEffect(() => {
     fetchStats();
@@ -529,6 +571,19 @@ const AdminDashboard = () => {
     }
   };
 
+  const submitStudyMaterial = async () => {
+      if (!studyMaterial.title || !studyMaterial.content || !studyMaterial.chapter_id) {
+          return toast.error("All fields required");
+      }
+      try {
+          await api.post("/admin/study_material", studyMaterial);
+          toast.success("Study Material Added!");
+          setStudyMaterial({...studyMaterial, title: "", content: ""});
+      } catch (err) {
+          toast.error("Failed to add study material");
+      }
+  };
+
   const handleLockToggle = async (batchId, chapterId, unlock) => {
     try {
       await api.post("/admin/lock", {
@@ -588,6 +643,16 @@ const AdminDashboard = () => {
               <FilePlus className="w-5 h-5" /> Content Creator
             </button>
             <button
+              onClick={() => setTab("study")}
+              className={`w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3 ${
+                tab === "study"
+                  ? "bg-white text-red-900 font-bold shadow"
+                  : "hover:bg-red-800 text-red-100"
+              }`}
+            >
+              <GraduationCap className="w-5 h-5" /> Study Materials
+            </button>
+            <button
               onClick={() => setTab("locks")}
               className={`w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3 ${
                 tab === "locks"
@@ -608,7 +673,7 @@ const AdminDashboard = () => {
             <LogOut className="w-5 h-5" /> Logout
           </button>
           <div className="mt-4 text-xs text-red-300 text-center">
-            v1.0.0 • Secure Admin
+            v1.1.0 • Secure Admin
           </div>
         </div>
       </aside>
@@ -944,12 +1009,13 @@ const AdminDashboard = () => {
                   <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">
                     XP Reward
                   </label>
+                  {/* FIX: Changed 'xp' to 'xp_reward' here */}
                   <input
                     type="number"
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-red-500 outline-none"
-                    value={newExercise.xp}
+                    value={newExercise.xp_reward}
                     onChange={(e) =>
-                      setNewExercise({ ...newExercise, xp: e.target.value })
+                      setNewExercise({ ...newExercise, xp_reward: e.target.value })
                     }
                   />
                 </div>
@@ -994,12 +1060,7 @@ const AdminDashboard = () => {
                               {q.question_type.replace("_", " ")}
                             </div>
                             <div className="text-sm text-gray-700 font-medium truncate w-96">
-                              {q.content.text ||
-                                q.content.statement ||
-                                q.content.sentence ||
-                                (q.content.pairs
-                                  ? "Matching Pairs"
-                                  : "Story Content")}
+                              {JSON.stringify(q.content).substring(0, 60)}...
                             </div>
                           </div>
                         </div>
@@ -1031,7 +1092,68 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* === 3. LOCKS TAB === */}
+        {/* === 3. STUDY MATERIALS TAB (NEW) === */}
+        {tab === "study" && (
+            <div className="max-w-4xl mx-auto animate-fade-in">
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">Study Material Manager</h1>
+                <p className="text-gray-500 mb-8">Add rules, grammar tables, and reference content.</p>
+
+                <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+                    <div className="grid grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Chapter</label>
+                            <select 
+                                className="w-full p-3 border rounded-lg"
+                                value={studyMaterial.chapter_id}
+                                onChange={e => setStudyMaterial({...studyMaterial, chapter_id: e.target.value})}
+                            >
+                                <option value="">Select Chapter</option>
+                                {chapters.map(c => <option key={c.chapter_id} value={c.chapter_id}>{c.title}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Category</label>
+                            <select 
+                                className="w-full p-3 border rounded-lg"
+                                value={studyMaterial.category}
+                                onChange={e => setStudyMaterial({...studyMaterial, category: e.target.value})}
+                            >
+                                <option value="grammar">Grammar Rule</option>
+                                <option value="vocabulary">Vocabulary List</option>
+                                <option value="pronunciation">Pronunciation Guide</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="mb-6">
+                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Title</label>
+                        <input 
+                            className="w-full p-3 border rounded-lg"
+                            placeholder="e.g., Le Verbe Être (To Be)"
+                            value={studyMaterial.title}
+                            onChange={e => setStudyMaterial({...studyMaterial, title: e.target.value})}
+                        />
+                    </div>
+
+                    <div className="mb-6">
+                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Content (HTML supported)</label>
+                        <p className="text-xs text-gray-400 mb-2">You can use tags like &lt;b&gt;, &lt;br&gt;, &lt;table&gt;.</p>
+                        <textarea 
+                            className="w-full p-3 border rounded-lg font-mono text-sm h-64"
+                            placeholder="<p>Here is the rule...</p>"
+                            value={studyMaterial.content}
+                            onChange={e => setStudyMaterial({...studyMaterial, content: e.target.value})}
+                        />
+                    </div>
+
+                    <button onClick={submitStudyMaterial} className="bg-purple-700 hover:bg-purple-800 text-white px-8 py-3 rounded-lg font-bold w-full">
+                        Save Material
+                    </button>
+                </div>
+            </div>
+        )}
+
+        {/* === 4. LOCKS TAB === */}
         {tab === "locks" && (
           <div className="max-w-5xl mx-auto animate-fade-in">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
@@ -1079,30 +1201,17 @@ const AdminDashboard = () => {
                           </div>
                           <div className="flex gap-1">
                             <button
-                              title="Unlock"
+                              title={isUnlocked ? "Lock" : "Unlock"}
                               onClick={() =>
                                 handleLockToggle(
                                   batch.batch_id,
                                   chap.chapter_id,
-                                  true
+                                  !isUnlocked
                                 )
                               }
-                              className={`p-2 border rounded transition ${isUnlocked ? 'bg-green-100 border-green-500 text-green-700' : 'bg-white border-gray-200 text-gray-400 hover:text-green-600'}`}
+                              className={`p-2 border rounded transition ${isUnlocked ? 'bg-green-100 border-green-500 text-green-700' : 'bg-red-100 border-red-500 text-red-700'}`}
                             >
-                              <Lock className="w-4 h-4 rotate-180" />
-                            </button>
-                            <button
-                              title="Lock"
-                              onClick={() =>
-                                handleLockToggle(
-                                  batch.batch_id,
-                                  chap.chapter_id,
-                                  false
-                                )
-                              }
-                              className={`p-2 border rounded transition ${!isUnlocked ? 'bg-red-100 border-red-500 text-red-700' : 'bg-white border-gray-200 text-gray-400 hover:text-red-600'}`}
-                            >
-                              <Lock className="w-4 h-4" />
+                              {isUnlocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                             </button>
                           </div>
                         </div>

@@ -22,10 +22,10 @@ import {
   Gamepad2,
   CheckCircle2,
   Lock,
+  GraduationCap
 } from "lucide-react";
 
 // Helper: Icon Selector
-// Since DB data doesn't have icons, we pick one based on the title or type
 const getIconForExercise = (title, type) => {
   const t = title.toLowerCase();
   if (type === "game") return Gamepad2;
@@ -37,6 +37,7 @@ const getIconForExercise = (title, type) => {
   return BookOpen; // Default
 };
 
+// ... Leaderboard and UserProgress components remain unchanged ...
 // Widget: Leaderboard
 const Leaderboard = ({ batchId, refreshKey }) => {
   const [leaders, setLeaders] = useState([]);
@@ -145,7 +146,6 @@ const UserProgress = ({ refreshKey }) => {
           >
             <span className="flex items-center gap-2 truncate w-40">
               <CheckCircle2 className="w-3 h-3 text-green-600" />
-              {/* We might need to map ID to Title if DB stores IDs, for now showing ID/Key */}
               <span className="truncate">{l.title}</span>
             </span>
             <span className="text-green-600 font-bold text-xs">
@@ -211,6 +211,15 @@ const Dashboard = () => {
               <p className="text-xs text-red-200 uppercase">Bonjour,</p>
               <p className="font-semibold leading-none">{user?.name}</p>
             </div>
+            
+            <Link
+              to="/study"
+              className="text-red-200 hover:text-white transition p-2 rounded-full hover:bg-red-700/50 flex items-center gap-1"
+              title="Study Zone"
+            >
+              <GraduationCap className="w-6 h-6" />
+            </Link>
+
             <Link
               to="/profile"
               className="text-red-200 hover:text-white transition p-2 rounded-full hover:bg-red-700/50"
@@ -258,7 +267,7 @@ const Dashboard = () => {
                     return (
                       <div
                         key={lesson.exercise_id}
-                        className="group border border-gray-200 rounded-xl p-5 hover:border-red-200 hover:shadow-md transition-all bg-white flex flex-col sm:flex-row justify-between items-center gap-4"
+                        className="groupQH border-gray-200 rounded-xl p-5 hover:border-red-200 hover:shadow-md transition-all bg-white flex flex-col sm:flex-row justify-between items-center gap-4"
                       >
                         <div className="flex items-center gap-4 w-full sm:w-auto">
                           <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-700 group-hover:scale-110 transition-transform">

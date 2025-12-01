@@ -1,6 +1,6 @@
 import express from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { createChapter, createExercise, toggleChapterLock, getStudentProgress, getChapters, getStudentHistory, getBatchAccess } from '../controllers/adminController.js';
+import { createChapter, createExercise, toggleChapterLock, getStudentProgress, getChapters, getStudentHistory, getBatchAccess, createStudyMaterial } from '../controllers/adminController.js';
 
 const router = express.Router();
 
@@ -19,5 +19,6 @@ router.get('/stats', authMiddleware, verifyAdmin, getStudentProgress);
 router.get('/chapters_list', authMiddleware, getChapters);
 router.get('/student/:id', authMiddleware, verifyAdmin, getStudentHistory);
 router.get('/access_map', authMiddleware, verifyAdmin, getBatchAccess);
+router.post('/study_material', authMiddleware, verifyAdmin, createStudyMaterial);
 
 export default router;

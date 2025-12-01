@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
+import StudyZone from "./pages/StudyZone";
 import useAuthStore from "./store/authStore";
 import ExercisePlayer from "./pages/ExercisePlayer";
 import { Toaster } from "react-hot-toast";
@@ -13,7 +14,7 @@ import { Toaster } from "react-hot-toast";
 function App() {
   const checkSession = useAuthStore((state) => state.checkSession);
   const loading = useAuthStore((state) => state.loading);
-  const user = useAuthStore((state) => state.user); // <--- GET USER TO CHECK ROLE
+  const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
     checkSession();
@@ -81,7 +82,15 @@ function App() {
           }
         />
 
-        {/* Catch all - redirect to login */}
+        <Route
+          path="/study"
+          element={
+            <ProtectedRoute>
+              <StudyZone />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
       <Toaster />

@@ -1,6 +1,6 @@
 import express from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { getLeaderboard, getUserProgress, addProgress, getBatchDetails, getStudentExercises, getExerciseDetails } from '../controllers/gameController.js';
+import { getLeaderboard, getUserProgress, addProgress, getBatchDetails, getStudentExercises, getExerciseDetails, getStudyMaterials } from '../controllers/gameController.js';
 
 const router = express.Router();
 
@@ -10,5 +10,6 @@ router.post('/progress/complete', authMiddleware, addProgress);
 router.get('/batch/:batch_id/full', authMiddleware, getBatchDetails);
 router.get('/exercises', authMiddleware, getStudentExercises);
 router.get('/exercise/:id', authMiddleware, getExerciseDetails);
+router.get('/study_materials', authMiddleware, getStudyMaterials);
 
 export default router;
