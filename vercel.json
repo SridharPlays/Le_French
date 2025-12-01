@@ -1,7 +1,7 @@
 {
   "version": 2,
   "name": "le-french",
-
+  
   "installCommand": "npm install --prefix ./backend && npm install --prefix ./frontend",
   
   "builds": [
@@ -10,13 +10,6 @@
       "use": "@vercel/node",
       "config": {
         "maxDuration": 10 
-      }
-    },
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
       }
     }
   ],
