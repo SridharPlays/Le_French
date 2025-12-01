@@ -1,15 +1,15 @@
 {
   "version": 2,
   "name": "le-french",
-  
-  "installCommand": "npm install --prefix backend && npm install --prefix frontend",
+
+  "installCommand": "npm install --prefix ./backend && npm install --prefix ./frontend",
   
   "builds": [
     {
       "src": "backend/src/server.js",
       "use": "@vercel/node",
       "config": {
-        "maxDuration": 10
+        "maxDuration": 10 
       }
     },
     {
@@ -32,5 +32,6 @@
     }
   ],
   
+  // Runs the frontend build which creates the static assets
   "buildCommand": "npm run build --prefix frontend"
 }
