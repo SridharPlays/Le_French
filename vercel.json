@@ -32,6 +32,5 @@
     }
   ],
   
-  // Runs the frontend build which creates the static assets
   "buildCommand": "npm run build --prefix frontend"
 }
