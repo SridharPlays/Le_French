@@ -10,37 +10,28 @@ import path from 'path';
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
-const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({
-  origin: allowedOrigin,
-  credentials: true, 
-}));
 
 app.use('/api/auth', authRoutes);
 app.use('/api', gameRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.get('/', (req, res) => {
+app.get('/api', (req, res) => {
   res.send('French Gamification API is running');
 });
 
-// Serve static files in production
+const FRONTEND_DIST_PATH = path.join(process.cwd(), 'frontend', 'dist');
+
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(path.resolve(), 'frontend', 'dist')));
+  app.use(express.static(FRONTEND_DIST_PATH));
+
   app.get('*', (req, res) => {
-    res.sendFile(path.resolve(path.resolve(), 'frontend', 'dist', 'index.html'));
-  });
-} else {
-  app.get('/', (req, res) => {
-    res.send('API is running....');
+    res.sendFile(path.join(FRONTEND_DIST_PATH, 'index.html'));
   });
 }
 
-// app.listen(PORT, () => {
-//   console.log(`Server running on http://localhost:${PORT}`);
-// });
-
-export default app;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
