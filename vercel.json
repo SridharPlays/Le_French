@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "name": "le-french",
+  
+  "installCommand": "npm install --prefix backend && npm install --prefix frontend",
+  
+  "builds": [
+    {
+      "src": "backend/src/server.js",
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 10
+      }
+    },
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "backend/src/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend/dist/$1"
+    }
+  ],
+  
+  "buildCommand": "npm run build --prefix frontend"
+}
