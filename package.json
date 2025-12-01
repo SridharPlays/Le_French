@@ -1,0 +1,10 @@
+{
+  "name": "le-french",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node backend/src/server.js",
+    "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
+    "render-start": "npm run build && npm start"
+  },
+  "license": "ISC"
+}

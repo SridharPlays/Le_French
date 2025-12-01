@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import authRoutes from './routes/authRoutes.js';
 import gameRoutes from './routes/gameRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import path from 'path';
 
 dotenv.config();
 const app = express();
@@ -25,6 +26,18 @@ app.use('/api/admin', adminRoutes);
 app.get('/', (req, res) => {
   res.send('French Gamification API is running');
 });
+
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(path.resolve(), 'frontend', 'dist')));
+  app.get('*', (req, res) => {
+    res.sendFile(path.resolve(path.resolve(), 'frontend', 'dist', 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.send('API is running....');
+  });
+}
 
 // app.listen(PORT, () => {
 //   console.log(`Server running on http://localhost:${PORT}`);
