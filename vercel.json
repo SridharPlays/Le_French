@@ -18,16 +18,12 @@
   
   "routes": [
     {
-      "src": "/",
-      "dest": "dist/index.html"
-    },
-    {
       "src": "/api/(.*)",
       "dest": "backend/src/server.js"
     },
     {
       "src": "/(.*)",
-      "dest": "dist/$1"
+      "dest": "dist/index.html"
     }
   ],
   
