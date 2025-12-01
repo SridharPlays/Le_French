@@ -1,10 +1,42 @@
 {
-  "name": "le-french",
+  "name": "le-french-monorepo",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "start": "node backend/src/server.js",
-    "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
-    "render-start": "npm run build && npm start"
+    "build": "npm run build --prefix frontend"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.0",
+    "pg": "^8.16.3",
+    "path": "^0.12.7", 
+    
+    "@gradio/client": "^2.0.0-dev.1",
+    "@tailwindcss/vite": "^4.1.17",
+    "axios": "^1.13.2",
+    "extendable-media-recorder": "^9.2.31",
+    "extendable-media-recorder-wav-encoder": "^7.0.132",
+    "lucide-react": "^0.553.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^7.9.5",
+    "tailwindcss": "^4.1.17",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.4",
+    "vite": "^7.1.7",
+    
+    "nodemon": "^2.0.22",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0"
   },
   "license": "ISC"
 }
